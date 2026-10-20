@@ -1,0 +1,70 @@
+Metadata-Version: 2.4
+Name: sc-research-agent
+Version: 0.1.0
+Summary: A controlled agent for reproducible stochastic-computing research tasks
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: httpx<1,>=0.27
+Requires-Dist: pydantic<3,>=2.7
+Requires-Dist: pydantic-settings<3,>=2.2
+Provides-Extra: agent
+Requires-Dist: langgraph<1,>=0.2; extra == "agent"
+Provides-Extra: api
+Requires-Dist: uvicorn<1,>=0.30; extra == "api"
+Requires-Dist: fastapi<1,>=0.115; extra == "api"
+Provides-Extra: ui
+Requires-Dist: streamlit<2,>=1.38; extra == "ui"
+Provides-Extra: dev
+Requires-Dist: pytest<9,>=8; extra == "dev"
+Requires-Dist: ruff<1,>=0.6; extra == "dev"
+
+# SC-Research-Agent
+
+SC-Research-Agent is an independent, controlled Agent for reproducible
+stochastic-computing research tasks. It uses the existing SC-RAG project as a
+grounded evidence service and adds task routing, planning, tool execution,
+simulation, recovery, human approval, and report export.
+
+The first target workflow is:
+
+```text
+research question
+  → classify and decompose
+  → retrieve trusted paper evidence through SC-RAG
+  → extract experiment parameters
+  → run a constrained stochastic-computing simulation
+  → compare results and explain discrepancies
+  → request approval
+  → export a cited research report
+```
+
+This repository is being developed in phases. Phase 0 establishes the stable
+state and tool boundaries; later phases add LangGraph orchestration, simulation,
+reflection, sandboxing, checkpoint recovery, tracing, and evaluation. See
+[`docs/architecture.md`](docs/architecture.md) for the design contracts.
+
+## Phase 0 setup
+
+Python 3.11+ is required. From the repository root:
+
+```bash
+python -m venv .venv
+.venv/bin/python -m pip install -e '.[dev]'
+.venv/bin/pytest
+```
+
+The Phase 0 client expects the SC-RAG API at `http://127.0.0.1:8000`. Override
+it with `SC_RAG_API_URL` when SC-RAG runs elsewhere. Configuration also exposes
+bounded defaults for request timeout, graph steps, retries, token budget, and
+the agent workspace. Secrets are intentionally not part of this repository.
+
+To check the integration after SC-RAG is running:
+
+```bash
+.venv/bin/sc-agent check
+.venv/bin/sc-agent check --query "stochastic computing multiplier"
+```
+
+Phase 0 does not yet call an LLM or execute arbitrary commands. That is
+deliberate: the first acceptance gate is a tested, inspectable boundary before
+we add autonomous behavior.
