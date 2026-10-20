@@ -25,7 +25,9 @@ reflection, sandboxing, checkpoint recovery, tracing, and evaluation. See
 
 ## Phase 0 setup
 
-Python 3.11+ is required. From the repository root:
+Python 3.11+ is required. From the repository root (usually
+`/workspaces/Agent` in GitHub Codespaces, or `/workspace/Agent` in the cloud
+onboarding environment):
 
 ```bash
 python -m venv .venv
