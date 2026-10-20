@@ -67,6 +67,22 @@ records tool failures. Run it with:
 The phase guide, code mapping, workflow explanation, and interview questions
 are in [`docs/phase1_interview.md`](docs/phase1_interview.md).
 
+## Phase 2: LangGraph state machine
+
+Install the optional graph dependency and run the explicit state-machine path:
+
+```bash
+.venv/bin/python -m pip install -e '.[agent,dev]'
+.venv/bin/sc-agent graph \
+  "compare Sobol and P2LSG multiplier accuracy" \
+  --paper Sobol --paper P2LSG
+```
+
+The graph routes fact tasks through a single plan and comparison, computation,
+and review tasks through a multi-task plan. It preserves the Phase 1 evidence
+and failure contracts. See [`docs/phase2_interview.md`](docs/phase2_interview.md)
+for the state transitions and interview preparation.
+
 Phase 0 does not yet call an LLM or execute arbitrary commands. That is
 deliberate: the first acceptance gate is a tested, inspectable boundary before
 we add autonomous behavior.

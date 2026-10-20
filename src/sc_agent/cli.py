@@ -17,6 +17,9 @@ def main() -> None:
     run = subparsers.add_parser("run", help="run the deterministic Phase 1 retrieval workflow")
     run.add_argument("question")
     run.add_argument("--paper", action="append", dest="paper_aliases", default=[])
+    graph = subparsers.add_parser("graph", help="run the Phase 2 LangGraph workflow")
+    graph.add_argument("question")
+    graph.add_argument("--paper", action="append", dest="paper_aliases", default=[])
     args = parser.parse_args()
 
     if args.command == "check":
@@ -26,4 +29,9 @@ def main() -> None:
             print(client.search(args.query))
     elif args.command == "run":
         result = Phase1Executor().run(ResearchRequest(question=args.question, paper_aliases=args.paper_aliases))
+        print(json.dumps(result.model_dump(mode="json"), ensure_ascii=False, indent=2))
+    elif args.command == "graph":
+        from .graph import Phase2Graph
+
+        result = Phase2Graph().invoke(ResearchRequest(question=args.question, paper_aliases=args.paper_aliases))
         print(json.dumps(result.model_dump(mode="json"), ensure_ascii=False, indent=2))
