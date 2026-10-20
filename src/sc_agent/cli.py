@@ -4,7 +4,7 @@ import argparse
 import json
 
 from .config import get_settings
-from .models import ResearchRequest
+from .models import ResearchRequest, SimulationSpec
 from .phase1 import Phase1Executor
 from .sc_rag_client import ScRagClient
 
@@ -20,6 +20,10 @@ def main() -> None:
     graph = subparsers.add_parser("graph", help="run the Phase 2 LangGraph workflow")
     graph.add_argument("question")
     graph.add_argument("--paper", action="append", dest="paper_aliases", default=[])
+    graph.add_argument("--x", type=float)
+    graph.add_argument("--y", type=float)
+    graph.add_argument("--length", type=int, default=100_000)
+    graph.add_argument("--seed", type=int, default=7)
     args = parser.parse_args()
 
     if args.command == "check":
@@ -33,5 +37,12 @@ def main() -> None:
     elif args.command == "graph":
         from .graph import Phase2Graph
 
-        result = Phase2Graph().invoke(ResearchRequest(question=args.question, paper_aliases=args.paper_aliases))
+        simulation = None
+        if args.x is not None or args.y is not None:
+            if args.x is None or args.y is None:
+                parser.error("--x and --y must be provided together")
+            simulation = SimulationSpec(x=args.x, y=args.y, length=args.length, seed=args.seed)
+        result = Phase2Graph().invoke(
+            ResearchRequest(question=args.question, paper_aliases=args.paper_aliases, simulation=simulation)
+        )
         print(json.dumps(result.model_dump(mode="json"), ensure_ascii=False, indent=2))

@@ -13,9 +13,35 @@ class TaskType(StrEnum):
     REVIEW = "review"
 
 
+class SimulationSpec(BaseModel):
+    """Explicit, bounded inputs for the Phase 3 simulator tool."""
+
+    operation: str = "unipolar_multiplier"
+    x: float = Field(ge=0.0, le=1.0)
+    y: float = Field(ge=0.0, le=1.0)
+    length: int = Field(default=100_000, ge=1, le=1_000_000)
+    seed: int = Field(default=7, ge=0)
+
+
+class SimulationResult(BaseModel):
+    operation: str
+    length: int
+    seed: int
+    x: float
+    y: float
+    expected: float
+    estimate: float
+    absolute_error: float
+    relative_error: float | None = None
+    ones_x: int
+    ones_y: int
+    ones_output: int
+
+
 class ResearchRequest(BaseModel):
     question: str = Field(min_length=1)
     paper_aliases: list[str] = Field(default_factory=list)
+    simulation: SimulationSpec | None = None
 
 
 class EvidenceRef(BaseModel):
@@ -76,3 +102,4 @@ class Phase1Result(BaseModel):
     evidence: list[EvidenceItem] = Field(default_factory=list)
     tool_runs: list[dict[str, Any]] = Field(default_factory=list)
     unresolved_issues: list[str] = Field(default_factory=list)
+    simulation: SimulationResult | None = None

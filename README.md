@@ -83,6 +83,21 @@ and review tasks through a multi-task plan. It preserves the Phase 1 evidence
 and failure contracts. See [`docs/phase2_interview.md`](docs/phase2_interview.md)
 for the state transitions and interview preparation.
 
+## Phase 3: constrained stochastic simulation
+
+Compute requests can now route through a bounded, reproducible unipolar
+multiplier simulator after retrieval:
+
+```bash
+.venv/bin/sc-agent graph \
+  "verify stochastic multiplier error by simulation" \
+  --x 0.3 --y 0.6 --length 100000 --seed 7
+```
+
+The simulator accepts only typed parameters and a whitelisted operation. See
+[`docs/phase3_interview.md`](docs/phase3_interview.md) for the rationale,
+workflow, and interview questions.
+
 Phase 0 does not yet call an LLM or execute arbitrary commands. That is
 deliberate: the first acceptance gate is a tested, inspectable boundary before
 we add autonomous behavior.

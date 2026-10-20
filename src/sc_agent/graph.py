@@ -6,9 +6,10 @@ from uuid import uuid4
 from langgraph.graph import END, START, StateGraph
 
 from .config import Settings, get_settings
-from .models import EvidenceItem, Phase1Result, ResearchRequest, TaskType
+from .models import EvidenceItem, Phase1Result, ResearchRequest, SimulationResult, TaskType
 from .planner import build_plan, classify_request
 from .sc_rag_client import ScRagClient
+from .simulator import StochasticSimulator
 
 
 class GraphState(TypedDict, total=False):
@@ -24,14 +25,21 @@ class GraphState(TypedDict, total=False):
     max_steps: int
     status: str
     route: str
+    simulation: dict[str, Any]
 
 
 class Phase2Graph:
     """Compile and invoke a bounded graph with an injectable retrieval client."""
 
-    def __init__(self, client: ScRagClient | None = None, settings: Settings | None = None) -> None:
+    def __init__(
+        self,
+        client: ScRagClient | None = None,
+        settings: Settings | None = None,
+        simulator: StochasticSimulator | None = None,
+    ) -> None:
         self.settings = settings or get_settings()
         self.client = client or ScRagClient(self.settings)
+        self.simulator = simulator or StochasticSimulator()
         self.graph = self._build().compile()
 
     def _build(self) -> StateGraph:
@@ -40,6 +48,7 @@ class Phase2Graph:
         workflow.add_node("plan_single", self._plan_single)
         workflow.add_node("plan_multi", self._plan_multi)
         workflow.add_node("retrieve", self._retrieve)
+        workflow.add_node("simulate", self._simulate)
         workflow.add_node("finalize", self._finalize)
         workflow.add_edge(START, "classify")
         workflow.add_conditional_edges(
@@ -49,7 +58,12 @@ class Phase2Graph:
         )
         workflow.add_edge("plan_single", "retrieve")
         workflow.add_edge("plan_multi", "retrieve")
-        workflow.add_edge("retrieve", "finalize")
+        workflow.add_conditional_edges(
+            "retrieve",
+            self._route_after_retrieve,
+            {"simulate": "simulate", "finalize": "finalize"},
+        )
+        workflow.add_edge("simulate", "finalize")
         workflow.add_edge("finalize", END)
         return workflow
 
@@ -133,8 +147,38 @@ class Phase2Graph:
         }
 
     @staticmethod
+    def _route_after_retrieve(state: GraphState) -> str:
+        return "simulate" if state.get("task_type") == TaskType.COMPUTE.value else "finalize"
+
+    def _simulate(self, state: GraphState) -> dict[str, Any]:
+        request = self._request(state)
+        if request.simulation is None:
+            return {
+                "unresolved_issues": [*state.get("unresolved_issues", []), "compute task has no simulation spec"],
+                "status": "needs_simulation_parameters",
+                "step_count": state.get("step_count", 0) + 1,
+            }
+        try:
+            result = self.simulator.simulate(request.simulation)
+            return {
+                "simulation": result.model_dump(mode="json"),
+                "tool_runs": [*state.get("tool_runs", []), {"tool": "stochastic_simulator", "status": "succeeded"}],
+                "status": "simulated",
+                "step_count": state.get("step_count", 0) + 1,
+            }
+        except Exception as error:  # noqa: BLE001 - tool boundary records failure
+            return {
+                "unresolved_issues": [*state.get("unresolved_issues", []), f"simulation: {type(error).__name__}: {error}"],
+                "tool_runs": [*state.get("tool_runs", []), {"tool": "stochastic_simulator", "status": "failed", "error": type(error).__name__}],
+                "status": "simulation_failed",
+                "step_count": state.get("step_count", 0) + 1,
+            }
+
+    @staticmethod
     def _finalize(state: GraphState) -> dict[str, Any]:
-        status = "completed" if state.get("evidence") else "needs_evidence"
+        status = state.get("status", "needs_evidence")
+        if status in {"retrieved", "planned", "classified"}:
+            status = "completed" if state.get("evidence") else "needs_evidence"
         return {"status": status, "step_count": state.get("step_count", 0) + 1}
 
     def invoke(self, request: ResearchRequest, *, task_id: str | None = None) -> Phase1Result:
@@ -153,4 +197,5 @@ class Phase2Graph:
             evidence=[EvidenceItem.model_validate(item) for item in result.get("evidence", [])],
             tool_runs=result.get("tool_runs", []),
             unresolved_issues=result.get("unresolved_issues", []),
+            simulation=SimulationResult.model_validate(result["simulation"]) if result.get("simulation") else None,
         )
