@@ -1,2 +1,0 @@
-[console_scripts]
-sc-agent = sc_agent.cli:main
