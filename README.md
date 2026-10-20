@@ -98,6 +98,21 @@ The simulator accepts only typed parameters and a whitelisted operation. See
 [`docs/phase3_interview.md`](docs/phase3_interview.md) for the rationale,
 workflow, and interview questions.
 
+## Phase 4: evidence-bound parameter extraction
+
+Phase 4 extracts only explicit values from retrieved evidence, records their
+source spans, fails closed on missing or conflicting values, and compares
+metrics only when their definitions align. Run it with:
+
+```bash
+.venv/bin/sc-agent phase4 \
+  "verify stochastic multiplier error by simulation" \
+  --x 0.3 --y 0.6 --length 100000 --seed 7
+```
+
+See [`docs/phase4_interview.md`](docs/phase4_interview.md) for the safety
+rules and interview preparation.
+
 Phase 0 does not yet call an LLM or execute arbitrary commands. That is
 deliberate: the first acceptance gate is a tested, inspectable boundary before
 we add autonomous behavior.

@@ -38,6 +38,29 @@ class SimulationResult(BaseModel):
     ones_output: int
 
 
+class ExtractedParameter(BaseModel):
+    name: str
+    value: float | int | str
+    source_span_id: str
+    quote: str = Field(min_length=1)
+
+
+class ParameterExtraction(BaseModel):
+    status: str
+    parameters: list[ExtractedParameter] = Field(default_factory=list)
+    missing: list[str] = Field(default_factory=list)
+    conflicts: list[str] = Field(default_factory=list)
+
+
+class MetricAlignment(BaseModel):
+    status: str
+    metric_name: str | None = None
+    simulated_value: float | None = None
+    reported_value: float | None = None
+    delta: float | None = None
+    reason: str | None = None
+
+
 class ResearchRequest(BaseModel):
     question: str = Field(min_length=1)
     paper_aliases: list[str] = Field(default_factory=list)
@@ -103,3 +126,5 @@ class Phase1Result(BaseModel):
     tool_runs: list[dict[str, Any]] = Field(default_factory=list)
     unresolved_issues: list[str] = Field(default_factory=list)
     simulation: SimulationResult | None = None
+    parameter_extraction: ParameterExtraction | None = None
+    metric_alignment: MetricAlignment | None = None
