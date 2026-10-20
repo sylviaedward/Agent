@@ -52,6 +52,18 @@ LLM 擅长从跨句文本中发现候选，但它可能改写数字、引用错�
 
 ## 最小调用示例
 
+配置 `OPENAI_BASE_URL`、`OPENAI_API_KEY` 和 `OPENAI_MODEL_ID` 后，可以直接运行：
+
+```bash
+cd /workspaces/Agent
+.venv/bin/sc-agent phase5 \
+  "extract stochastic multiplier parameters and compare reported error" \
+  --x 0.3 --y 0.6 --length 100000 --seed 7
+```
+
+该命令使用 OpenAI 兼容的 `/chat/completions` 接口。模型输出只进入候选校验，
+终端结果中的 `approval.status` 才决定是否可以继续执行或导出。
+
 ```python
 from sc_agent.phase5 import HumanApprovalFlow, LLMParameterExtractor
 

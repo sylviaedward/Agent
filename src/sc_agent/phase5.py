@@ -1,18 +1,24 @@
 """Guarded LLM extraction, unit normalization, and human approval for Phase 5."""
 
 import json
+import os
 import re
+import urllib.error
+import urllib.request
 from collections import defaultdict
 from collections.abc import Iterable
 from typing import Protocol
 
+from .graph import Phase2Graph
 from .models import (
     ApprovalDecision,
     ApprovalRequest,
     EvidenceItem,
     ExtractedParameter,
     LLMExtractedParameter,
+    Phase1Result,
     Phase5Extraction,
+    ResearchRequest,
     StructuredExtraction,
 )
 
@@ -39,6 +45,55 @@ class ExtractionClient(Protocol):
     """Minimal interface so production clients and deterministic test doubles fit."""
 
     def complete(self, system_prompt: str, user_prompt: str) -> str | dict[str, object]: ...
+
+
+class OpenAICompatibleExtractionClient:
+    """Small stdlib client for OpenAI-compatible chat-completion gateways."""
+
+    def __init__(self, base_url: str, api_key: str, model: str, timeout: float = 30.0) -> None:
+        if not base_url or not api_key or not model:
+            raise ValueError("LLM base URL, API key, and model name are required")
+        self.endpoint = base_url.rstrip("/") + "/chat/completions"
+        self.api_key = api_key
+        self.model = model
+        self.timeout = timeout
+
+    @classmethod
+    def from_env(cls) -> "OpenAICompatibleExtractionClient":
+        return cls(
+            os.environ.get("OPENAI_BASE_URL", ""),
+            os.environ.get("OPENAI_API_KEY", ""),
+            os.environ.get("OPENAI_MODEL_ID", ""),
+        )
+
+    def complete(self, system_prompt: str, user_prompt: str) -> str:
+        payload = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            "temperature": 0,
+            "response_format": {"type": "json_object"},
+        }
+        request = urllib.request.Request(
+            self.endpoint,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                body = json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as error:
+            detail = error.read().decode("utf-8", errors="replace")[:500]
+            raise RuntimeError(f"LLM extraction API returned HTTP {error.code}: {detail}") from error
+        except urllib.error.URLError as error:
+            raise RuntimeError(f"LLM extraction API unavailable: {error.reason}") from error
+        try:
+            return str(body["choices"][0]["message"]["content"])
+        except (KeyError, IndexError, TypeError) as error:
+            raise RuntimeError("LLM extraction response has no chat completion content") from error
 
 
 def _parse_json(payload: str | dict[str, object]) -> dict[str, object]:
@@ -177,3 +232,18 @@ class HumanApprovalFlow:
         if decision.status not in {"approved", "rejected"}:
             raise ValueError("approval status must be approved or rejected")
         return request.model_copy(update={"status": decision.status, "decision": decision})
+
+
+class Phase5Workflow:
+    """Run retrieval, guarded extraction, and approval preparation as one boundary."""
+
+    def __init__(self, client: ExtractionClient, graph: Phase2Graph | None = None) -> None:
+        self.graph = graph or Phase2Graph()
+        self.extractor = LLMParameterExtractor(client)
+        self.approvals = HumanApprovalFlow()
+
+    def run(self, request: ResearchRequest) -> Phase1Result:
+        result = self.graph.invoke(request)
+        extraction = self.extractor.extract(result.evidence)
+        approval = self.approvals.prepare(extraction)
+        return result.model_copy(update={"phase5_extraction": extraction, "approval": approval})

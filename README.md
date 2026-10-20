@@ -122,5 +122,13 @@ require an explicit reviewer decision. See
 [`docs/phase5_interview.md`](docs/phase5_interview.md) for the workflow and
 interview questions.
 
+With an OpenAI-compatible gateway configured:
+
+```bash
+.venv/bin/sc-agent phase5 \
+  "extract stochastic multiplier parameters and compare reported error" \
+  --x 0.3 --y 0.6 --length 100000 --seed 7
+```
+
 LLM extraction remains behind the Phase 5 validation and approval boundary;
 the agent never treats model output as executable authority.
