@@ -40,6 +40,11 @@ it with `SC_RAG_API_URL` when SC-RAG runs elsewhere. Configuration also exposes
 bounded defaults for request timeout, graph steps, retries, token budget, and
 the agent workspace. Secrets are intentionally not part of this repository.
 
+The Agent and SC-RAG repositories are independent checkouts. A Codespace
+created from this repository contains `/workspaces/Agent` only; it does not
+automatically contain `/workspaces/SC-RAG`. Clone SC-RAG into the same
+Codespace, or point `SC_RAG_API_URL` at an already running SC-RAG service.
+
 To check the integration after SC-RAG is running:
 
 ```bash
