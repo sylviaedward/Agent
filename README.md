@@ -52,6 +52,21 @@ To check the integration after SC-RAG is running:
 .venv/bin/sc-agent check --query "stochastic computing multiplier"
 ```
 
+## Phase 1: deterministic task execution
+
+Phase 1 adds explainable routing and a bounded retrieval workflow. It classifies
+fact, comparison, computation, and review requests, expands explicit paper
+targets into separate retrieval subtasks, deduplicates trusted evidence, and
+records tool failures. Run it with:
+
+```bash
+.venv/bin/sc-agent run "compare Sobol and P2LSG multiplier accuracy" \
+  --paper Sobol --paper P2LSG
+```
+
+The phase guide, code mapping, workflow explanation, and interview questions
+are in [`docs/phase1_interview.md`](docs/phase1_interview.md).
+
 Phase 0 does not yet call an LLM or execute arbitrary commands. That is
 deliberate: the first acceptance gate is a tested, inspectable boundary before
 we add autonomous behavior.
