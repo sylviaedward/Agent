@@ -43,6 +43,9 @@ class ExtractedParameter(BaseModel):
     value: float | int | str
     source_span_id: str
     quote: str = Field(min_length=1)
+    unit: str | None = None
+    normalized_value: float | int | str | None = None
+    condition: str | None = None
 
 
 class ParameterExtraction(BaseModel):
@@ -59,6 +62,44 @@ class MetricAlignment(BaseModel):
     reported_value: float | None = None
     delta: float | None = None
     reason: str | None = None
+
+
+class LLMExtractedParameter(BaseModel):
+    """A model-proposed parameter; it is untrusted until evidence validation."""
+
+    name: str
+    value: float | int | str
+    unit: str | None = None
+    condition: str | None = None
+    source_span_id: str
+    quote: str = Field(min_length=1)
+
+
+class StructuredExtraction(BaseModel):
+    """Strict JSON envelope expected from the extraction model."""
+
+    parameters: list[LLMExtractedParameter] = Field(default_factory=list)
+
+
+class Phase5Extraction(BaseModel):
+    status: str
+    parameters: list[ExtractedParameter] = Field(default_factory=list)
+    missing: list[str] = Field(default_factory=list)
+    conflicts: list[str] = Field(default_factory=list)
+    needs_review: list[str] = Field(default_factory=list)
+
+
+class ApprovalDecision(BaseModel):
+    status: str
+    reviewer: str = Field(min_length=1)
+    comment: str = ""
+
+
+class ApprovalRequest(BaseModel):
+    status: str
+    reasons: list[str] = Field(default_factory=list)
+    parameters: list[ExtractedParameter] = Field(default_factory=list)
+    decision: ApprovalDecision | None = None
 
 
 class ResearchRequest(BaseModel):
@@ -128,3 +169,5 @@ class Phase1Result(BaseModel):
     simulation: SimulationResult | None = None
     parameter_extraction: ParameterExtraction | None = None
     metric_alignment: MetricAlignment | None = None
+    phase5_extraction: Phase5Extraction | None = None
+    approval: ApprovalRequest | None = None

@@ -113,6 +113,14 @@ metrics only when their definitions align. Run it with:
 See [`docs/phase4_interview.md`](docs/phase4_interview.md) for the safety
 rules and interview preparation.
 
-Phase 0 does not yet call an LLM or execute arbitrary commands. That is
-deliberate: the first acceptance gate is a tested, inspectable boundary before
-we add autonomous behavior.
+## Phase 5: structured extraction and human approval
+
+Phase 5 lets an LLM discover candidate parameters from natural-language evidence,
+then validates source spans, quotes, units, ranges, and conditions before any
+simulation or report export. Ambiguous candidates become `pending_human` and
+require an explicit reviewer decision. See
+[`docs/phase5_interview.md`](docs/phase5_interview.md) for the workflow and
+interview questions.
+
+LLM extraction remains behind the Phase 5 validation and approval boundary;
+the agent never treats model output as executable authority.
