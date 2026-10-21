@@ -46,6 +46,7 @@ class ExtractedParameter(BaseModel):
     unit: str | None = None
     normalized_value: float | int | str | None = None
     condition: str | None = None
+    quote_recovered: bool = False
 
 
 class ParameterExtraction(BaseModel):
@@ -72,7 +73,7 @@ class LLMExtractedParameter(BaseModel):
     unit: str | None = None
     condition: str | None = None
     source_span_id: str
-    quote: str = Field(min_length=1)
+    quote: str | None = None
 
 
 class StructuredExtraction(BaseModel):

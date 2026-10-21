@@ -141,6 +141,29 @@ def _normalise_quote(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip()
 
 
+def _recover_quote(candidate: LLMExtractedParameter, text: str) -> str | None:
+    """Recover a quote only from an exact, unique lexical match in the cited span."""
+    number = r"[-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?"
+    if candidate.name == "bitstream_length":
+        pattern = rf"(?:bitstream|bit[- ]?stream|stream)\s*(?:length|size)\s*(?:is|=|:)\s*{number}"
+    elif candidate.name in {"x", "y"}:
+        pattern = rf"\b{candidate.name}\s*(?:is|=|:)\s*{number}\s*(?:%|[a-zA-Zµ]+)?"
+    elif candidate.name == "metric":
+        pattern = r"\b(?:RMSE|MSE|MAE|absolute error|relative error|accuracy)\b"
+    else:
+        pattern = rf"(?:reported|measured|observed|result)\s*(?:value|error)?\s*(?:is|=|:)\s*{number}\s*(?:%|[a-zA-Zµ]+)?"
+    matches = list(re.finditer(pattern, text, re.IGNORECASE))
+    if len(matches) != 1:
+        return None
+    match = matches[0]
+    quote = text[match.start() : match.end()]
+    if candidate.name not in {"metric", "bitstream_length"} and candidate.value is not None:
+        numeric = str(candidate.value).strip()
+        if numeric not in quote and candidate.unit != "%":
+            return None
+    return quote
+
+
 def _normalise_unit(unit: str | None) -> str:
     return (unit or "").strip().lower().replace("μ", "µ")
 
@@ -244,7 +267,15 @@ class LLMParameterExtractor:
             if source is None:
                 issues.append(f"{candidate.name}: unknown source span {candidate.source_span_id}")
                 continue
-            if _normalise_quote(candidate.quote) not in _normalise_quote(source.text):
+            recovered = False
+            if not candidate.quote:
+                candidate_quote = _recover_quote(candidate, source.text)
+                if candidate_quote is None:
+                    issues.append(f"{candidate.name}: quote missing and could not be recovered")
+                    continue
+                candidate = candidate.model_copy(update={"quote": candidate_quote})
+                recovered = True
+            if _normalise_quote(candidate.quote or "") not in _normalise_quote(source.text):
                 issues.append(f"{candidate.name}: quote is not present in source span {candidate.source_span_id}")
                 continue
             try:
@@ -260,7 +291,8 @@ class LLMParameterExtractor:
                     unit=unit,
                     condition=candidate.condition,
                     source_span_id=candidate.source_span_id,
-                    quote=candidate.quote,
+                    quote=candidate.quote or "",
+                    quote_recovered=recovered,
                 )
             )
         conflicts = list(issues)

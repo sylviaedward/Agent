@@ -69,6 +69,30 @@ def test_llm_candidates_are_normalized_and_source_bound():
     assert all(item.source_span_id == "s1" for item in result.parameters)
 
 
+def test_missing_quotes_are_recovered_from_the_cited_span():
+    evidence = [
+        EvidenceItem(
+            span_id="s2",
+            source_subtask_id="r2",
+            text="bitstream length is 1000; x=30%; y=0.6; absolute error; reported value is 0.02",
+        )
+    ]
+    payload = {
+        "parameters": [
+            {"name": "bitstream_length", "value": 1000, "source_span_id": "s2"},
+            {"name": "x", "value": 30, "unit": "%", "source_span_id": "s2"},
+            {"name": "y", "value": 0.6, "source_span_id": "s2"},
+            {"name": "metric", "value": "absolute error", "source_span_id": "s2"},
+            {"name": "reported_value", "value": 0.02, "source_span_id": "s2"},
+        ]
+    }
+    result = LLMParameterExtractor(FakeExtractorClient(payload)).extract(evidence)
+    assert result.status == "complete"
+    assert len(result.parameters) == 5
+    assert all(item.quote_recovered for item in result.parameters)
+    assert all(item.quote in evidence[0].text for item in result.parameters)
+
+
 def test_prompt_evidence_is_bounded_without_changing_local_source():
     client = FakeExtractorClient({"parameters": []})
     evidence = [EvidenceItem(span_id="s1", source_subtask_id="r1", text="a" * 1000)]
