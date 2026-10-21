@@ -132,7 +132,8 @@ With an OpenAI-compatible gateway configured:
 
 默认 LLM 超时为 120 秒，模型输入有字符上限；可用
 `SC_AGENT_LLM_TIMEOUT_SECONDS`、`SC_AGENT_EXTRACTION_MAX_CHARS` 和
-`SC_AGENT_EXTRACTION_MAX_CHARS_PER_SPAN` 调整。
+`SC_AGENT_EXTRACTION_MAX_CHARS_PER_SPAN` 调整。候选参数默认最多处理 20 个，
+单个坏候选不会导致整个结构化响应崩溃。
 
 LLM extraction remains behind the Phase 5 validation and approval boundary;
 the agent never treats model output as executable authority.

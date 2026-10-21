@@ -76,9 +76,9 @@ class LLMExtractedParameter(BaseModel):
 
 
 class StructuredExtraction(BaseModel):
-    """Strict JSON envelope expected from the extraction model."""
+    """JSON envelope; individual candidates are validated independently."""
 
-    parameters: list[LLMExtractedParameter] = Field(default_factory=list)
+    parameters: list[object] = Field(default_factory=list)
 
 
 class Phase5Extraction(BaseModel):

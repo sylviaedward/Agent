@@ -176,7 +176,9 @@ class LLMParameterExtractor:
     system_prompt = (
         "Extract explicit stochastic-computing parameters from evidence. Return JSON only with "
         "a parameters array. Each item must contain name, value, unit, condition, source_span_id, "
-        "and an exact quote copied from one evidence span. Never infer missing values."
+        "and an exact quote copied from one evidence span. Extract only the five requested fields "
+        "(bitstream_length, x, y, metric, reported_value); ignore table headers and unrelated cells. "
+        "Never infer missing values."
     )
 
     def __init__(
@@ -184,12 +186,14 @@ class LLMParameterExtractor:
         client: ExtractionClient,
         max_prompt_chars: int | None = None,
         max_chars_per_span: int | None = None,
+        max_candidates: int | None = None,
     ) -> None:
         self.client = client
         self.max_prompt_chars = max_prompt_chars or int(os.environ.get("SC_AGENT_EXTRACTION_MAX_CHARS", "24000"))
         self.max_chars_per_span = max_chars_per_span or int(
             os.environ.get("SC_AGENT_EXTRACTION_MAX_CHARS_PER_SPAN", "5000")
         )
+        self.max_candidates = max_candidates or int(os.environ.get("SC_AGENT_EXTRACTION_MAX_CANDIDATES", "20"))
 
     def _prompt_evidence(self, items: list[EvidenceItem]) -> str:
         """Bound model input while retaining the complete local evidence for validation."""
@@ -220,7 +224,19 @@ class LLMParameterExtractor:
         by_span = {item.span_id: item for item in items}
         candidates: dict[str, list[ExtractedParameter]] = defaultdict(list)
         issues: list[str] = []
-        for candidate in envelope.parameters:
+        raw_candidates = envelope.parameters
+        if len(raw_candidates) > self.max_candidates:
+            issues.append(f"candidate_limit_exceeded: received {len(raw_candidates)}, kept {self.max_candidates}")
+            raw_candidates = raw_candidates[: self.max_candidates]
+        for index, raw_candidate in enumerate(raw_candidates):
+            if not isinstance(raw_candidate, dict):
+                issues.append(f"candidate[{index}]: expected an object")
+                continue
+            try:
+                candidate = LLMExtractedParameter.model_validate(raw_candidate)
+            except Exception as error:  # noqa: BLE001 - one bad candidate must not poison the batch
+                issues.append(f"candidate[{index}]: invalid schema: {error}")
+                continue
             if candidate.name not in _ALLOWED:
                 issues.append(f"unknown parameter: {candidate.name}")
                 continue
@@ -233,7 +249,7 @@ class LLMParameterExtractor:
                 continue
             try:
                 value, unit, _ = _normalise_value(candidate)
-            except ValueError as error:
+            except (TypeError, ValueError) as error:
                 issues.append(str(error))
                 continue
             candidates[candidate.name].append(

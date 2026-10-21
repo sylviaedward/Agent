@@ -26,6 +26,8 @@ EvidenceItem
 ## 安全边界
 
 - 每个候选必须引用存在的 `source_span_id`。
+- 候选数组按上限处理，默认最多接受 20 个候选；超出部分不会进入校验。
+- 每个候选独立进行 Schema 校验；缺失 quote、数组值或非法类型只会拒绝该候选，不会让整个批次崩溃。
 - quote 的空白差异可以归一化，但内容必须确实出现在对应证据中。
 - 百分比、概率、秒/毫秒/微秒/纳秒会转换为统一数值；未知单位直接拒绝。
 - `x` 和 `y` 必须落在 `[0, 1]`；长度必须为正数。
@@ -70,6 +72,7 @@ cd /workspaces/Agent
 export SC_AGENT_LLM_TIMEOUT_SECONDS=180
 export SC_AGENT_EXTRACTION_MAX_CHARS=24000
 export SC_AGENT_EXTRACTION_MAX_CHARS_PER_SPAN=5000
+export SC_AGENT_EXTRACTION_MAX_CANDIDATES=20
 ```
 
 证据裁剪只发生在发送给模型的 prompt 中；本地仍保留完整 `EvidenceItem`，

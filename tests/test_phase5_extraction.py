@@ -78,6 +78,20 @@ def test_prompt_evidence_is_bounded_without_changing_local_source():
     assert "evidence span truncated" in client.user_prompt
 
 
+def test_malformed_over_extraction_is_bounded_and_does_not_crash():
+    payload = {
+        "parameters": [
+            {"name": "table_cell", "value": [6, 7, 8], "source_span_id": "s1"}
+            for _ in range(35)
+        ]
+    }
+    result = LLMParameterExtractor(FakeExtractorClient(payload), max_candidates=20).extract(_evidence())
+    assert result.status == "conflict"
+    assert result.parameters == []
+    assert any("candidate_limit_exceeded" in item for item in result.conflicts)
+    assert any("invalid schema" in item for item in result.conflicts)
+
+
 def test_invalid_quote_and_unknown_unit_fail_closed():
     payload = {
         "parameters": [
