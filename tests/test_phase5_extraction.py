@@ -1,5 +1,9 @@
 from sc_agent.models import ApprovalDecision, EvidenceItem
-from sc_agent.phase5 import HumanApprovalFlow, LLMParameterExtractor
+from sc_agent.phase5 import (
+    HumanApprovalFlow,
+    LLMParameterExtractor,
+    OpenAICompatibleExtractionClient,
+)
 
 
 class FakeExtractorClient:
@@ -8,6 +12,31 @@ class FakeExtractorClient:
 
     def complete(self, system_prompt, user_prompt):
         return self.payload
+
+
+def test_openai_client_sets_identifying_user_agent(monkeypatch):
+    captured = {}
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return b'{"choices":[{"message":{"content":"{}"}}]}'
+
+    def fake_urlopen(request, timeout):
+        captured["request"] = request
+        captured["timeout"] = timeout
+        return Response()
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    client = OpenAICompatibleExtractionClient("https://gateway.example/v1", "secret", "model")
+    assert client.complete("system", "user") == "{}"
+    assert captured["request"].headers["User-agent"].startswith("sc-research-agent/")
+    assert captured["request"].headers["Accept"] == "application/json"
 
 
 def _evidence():

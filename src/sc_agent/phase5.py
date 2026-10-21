@@ -50,13 +50,21 @@ class ExtractionClient(Protocol):
 class OpenAICompatibleExtractionClient:
     """Small stdlib client for OpenAI-compatible chat-completion gateways."""
 
-    def __init__(self, base_url: str, api_key: str, model: str, timeout: float = 30.0) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str,
+        model: str,
+        timeout: float = 30.0,
+        user_agent: str = "sc-research-agent/0.1 (+https://github.com/sylviaedward/Agent)",
+    ) -> None:
         if not base_url or not api_key or not model:
             raise ValueError("LLM base URL, API key, and model name are required")
         self.endpoint = base_url.rstrip("/") + "/chat/completions"
         self.api_key = api_key
         self.model = model
         self.timeout = timeout
+        self.user_agent = user_agent
 
     @classmethod
     def from_env(cls) -> "OpenAICompatibleExtractionClient":
@@ -64,6 +72,10 @@ class OpenAICompatibleExtractionClient:
             os.environ.get("OPENAI_BASE_URL", ""),
             os.environ.get("OPENAI_API_KEY", ""),
             os.environ.get("OPENAI_MODEL_ID", ""),
+            user_agent=os.environ.get(
+                "SC_AGENT_USER_AGENT",
+                "sc-research-agent/0.1 (+https://github.com/sylviaedward/Agent)",
+            ),
         )
 
     def complete(self, system_prompt: str, user_prompt: str) -> str:
@@ -79,7 +91,12 @@ class OpenAICompatibleExtractionClient:
         request = urllib.request.Request(
             self.endpoint,
             data=json.dumps(payload).encode("utf-8"),
-            headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "User-Agent": self.user_agent,
+            },
             method="POST",
         )
         try:
@@ -87,7 +104,12 @@ class OpenAICompatibleExtractionClient:
                 body = json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as error:
             detail = error.read().decode("utf-8", errors="replace")[:500]
-            raise RuntimeError(f"LLM extraction API returned HTTP {error.code}: {detail}") from error
+            server = error.headers.get("Server", "unknown")
+            ray = error.headers.get("CF-Ray", "")
+            suffix = f" server={server}"
+            if ray:
+                suffix += f" cf_ray={ray}"
+            raise RuntimeError(f"LLM extraction API returned HTTP {error.code}: {detail}{suffix}") from error
         except urllib.error.URLError as error:
             raise RuntimeError(f"LLM extraction API unavailable: {error.reason}") from error
         try:
