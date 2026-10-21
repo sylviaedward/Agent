@@ -138,3 +138,10 @@ With an OpenAI-compatible gateway configured:
 
 LLM extraction remains behind the Phase 5 validation and approval boundary;
 the agent never treats model output as executable authority.
+
+## Phase 6: approved execution and report export
+
+Phase 6 executes only complete, approved parameters and exports an evidence-linked
+JSON report. Pending or rejected approvals cannot reach the simulator. See
+[`docs/phase6_interview.md`](docs/phase6_interview.md) for the execution gate and
+interview preparation.

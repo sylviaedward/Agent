@@ -103,6 +103,18 @@ class ApprovalRequest(BaseModel):
     decision: ApprovalDecision | None = None
 
 
+class Phase6Result(BaseModel):
+    status: str
+    task_id: str
+    question: str
+    approval_status: str
+    reason: str | None = None
+    simulation: SimulationResult | None = None
+    parameters: list[ExtractedParameter] = Field(default_factory=list)
+    evidence_span_ids: list[str] = Field(default_factory=list)
+    report_path: str | None = None
+
+
 class ResearchRequest(BaseModel):
     question: str = Field(min_length=1)
     paper_aliases: list[str] = Field(default_factory=list)
@@ -172,3 +184,4 @@ class Phase1Result(BaseModel):
     metric_alignment: MetricAlignment | None = None
     phase5_extraction: Phase5Extraction | None = None
     approval: ApprovalRequest | None = None
+    phase6: Phase6Result | None = None
