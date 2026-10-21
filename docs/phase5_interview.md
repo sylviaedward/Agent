@@ -64,6 +64,17 @@ cd /workspaces/Agent
 该命令使用 OpenAI 兼容的 `/chat/completions` 接口。模型输出只进入候选校验，
 终端结果中的 `approval.status` 才决定是否可以继续执行或导出。
 
+超时和输入预算可以按网关性能调整：
+
+```bash
+export SC_AGENT_LLM_TIMEOUT_SECONDS=180
+export SC_AGENT_EXTRACTION_MAX_CHARS=24000
+export SC_AGENT_EXTRACTION_MAX_CHARS_PER_SPAN=5000
+```
+
+证据裁剪只发生在发送给模型的 prompt 中；本地仍保留完整 `EvidenceItem`，
+因此 quote 校验不会因为 prompt 预算而放宽。
+
 ```python
 from sc_agent.phase5 import HumanApprovalFlow, LLMParameterExtractor
 
